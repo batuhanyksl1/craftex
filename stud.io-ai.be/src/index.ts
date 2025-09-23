@@ -2,11 +2,17 @@ import {onRequest, HttpsError} from "firebase-functions/v2/https";
 import {setGlobalOptions} from "firebase-functions/v2";
 import * as logger from "firebase-functions/logger";
 import {defineSecret} from "firebase-functions/params"; // ✅ Secrets API
+import * as admin from "firebase-admin";
 
 // ----------------------------------------------------------------------------
 // Global config
 // ----------------------------------------------------------------------------
 setGlobalOptions({maxInstances: 5, region: "europe-west1"});
+
+// Initialize Firebase Admin
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 // Keep your FAL key in Firebase Secrets Manager
 const FAL_SECRET = defineSecret("FAL_KEY");
@@ -25,6 +31,7 @@ function getFalKey(): string {
   }
   return key;
 }
+
 
 /**
  * Builds request body for FAL AI API calls.
@@ -268,6 +275,27 @@ export const aiToolRequest = onRequest(
     }
 
     try {
+      // Authentication kontrolü
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({error: "Kimlik doğrulama gerekli"});
+        return;
+      }
+
+      const idToken = authHeader.split("Bearer ")[1];
+      logger.info("Auth token received", {
+        tokenPrefix: idToken.substring(0, 10) + "...",
+      });
+
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const userId = decodedToken.uid;
+
+      logger.info("Authenticated request", {
+        uid: decodedToken.uid,
+        email: decodedToken.email,
+        structuredData: true,
+      });
+
       // eslint-disable-next-line camelcase
       const {serviceUrl, prompt, image_urls, extra} = req.body;
 
@@ -300,16 +328,105 @@ export const aiToolRequest = onRequest(
         useAuth: true,
       });
 
+      // Başarılı çağırımı Firestore'a kaydet - INLINE
+      let documentId = null;
+      try {
+        const firestore = admin.firestore();
+        const logData = {
+          userId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          serviceUrl: serviceUrl || "",
+          prompt: prompt || "",
+          // eslint-disable-next-line camelcase
+          imageUrls: image_urls || [],
+        };
+
+        const docRef = await firestore.collection("aiToolRequests")
+          .add(logData);
+        documentId = docRef.id;
+        logger.info("AI Tool Request logged to Firestore successfully", {
+          docId: docRef.id,
+          status: "success",
+          userId,
+          serviceUrl,
+          structuredData: true,
+        });
+      } catch (firestoreError) {
+        logger.error("Failed to log AI Tool Request to Firestore:",
+          firestoreError);
+        // Don't throw error to avoid breaking the main flow
+      }
+
       res.status(200).json({
         success: true,
         data: result,
         url: serviceUrl,
         method: "POST",
         timestamp: new Date().toISOString(),
+        documentId, // Firestore doküman ID'si (null olabilir)
       });
     } catch (error: unknown) {
       logger.error("AI Tool Request error:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown";
+
+      // Authentication hatası kontrolü
+      if (errorMessage.includes("Firebase ID token") ||
+          errorMessage.includes("auth") ||
+          errorMessage.includes("token")) {
+        res.status(403).json({
+          error: "Geçersiz token veya doğrulama hatası",
+          success: false,
+        });
+        return;
+      }
+
+      // Diğer hatalar için Firestore'a kaydet (eğer userId varsa)
+      try {
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith("Bearer ")) {
+          const idToken = authHeader.split("Bearer ")[1];
+          const decodedToken = await admin.auth().verifyIdToken(idToken);
+          const userId = decodedToken.uid;
+
+          // eslint-disable-next-line camelcase
+          const {serviceUrl, prompt, image_urls, extra} = req.body || {};
+
+          // Hata durumunu Firestore'a kaydet - INLINE
+          try {
+            const firestore = admin.firestore();
+            const errorLogData = {
+              userId,
+              timestamp: new Date().toISOString(),
+              status: "error",
+              request: {
+                serviceUrl: serviceUrl || "",
+                prompt: prompt || "",
+                // eslint-disable-next-line camelcase
+                imageUrls: image_urls || [],
+                extra: extra || {},
+              },
+              error: {message: errorMessage},
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+
+            const errorDocRef = await firestore.collection("aiToolRequests")
+              .add(errorLogData);
+            logger.info("AI Tool Request error logged to Firestore", {
+              docId: errorDocRef.id,
+              status: "error",
+              userId,
+              error: errorMessage,
+              structuredData: true,
+            });
+          } catch (firestoreError) {
+            logger.error("Failed to log error to Firestore:", firestoreError);
+          }
+        }
+      } catch (authError) {
+        logger.error("Could not log error to Firestore due to auth:",
+          authError);
+      }
+
       res.status(500).json({
         error: errorMessage,
         success: false,
@@ -397,11 +514,35 @@ export const aiToolResult = onRequest(
     }
 
     try {
-      const {serviceUrl, requestId, extra} = req.body;
+      // Authentication kontrolü
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({error: "Kimlik doğrulama gerekli"});
+        return;
+      }
+
+      const idToken = authHeader.split("Bearer ")[1];
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const userId = decodedToken.uid;
+
+      logger.info("Authenticated aiToolResult request", {
+        uid: decodedToken.uid,
+        email: decodedToken.email,
+        structuredData: true,
+      });
+
+      const {serviceUrl, requestId, extra, documentId} = req.body;
 
       if (!requestId) {
         res.status(400).json({
           error: "requestId gereklidir",
+        });
+        return;
+      }
+
+      if (!documentId) {
+        res.status(400).json({
+          error: "documentId gereklidir",
         });
         return;
       }
@@ -415,11 +556,57 @@ export const aiToolResult = onRequest(
         useAuth: true,
       });
 
+      // Result verilerini Firestore dokümanına ekle
+      try {
+        const firestore = admin.firestore();
+        const docRef = firestore.collection("aiToolRequests").doc(documentId);
+
+        // Dokümanın var olduğunu ve kullanıcıya ait olduğunu kontrol et
+        const docSnapshot = await docRef.get();
+        if (!docSnapshot.exists) {
+          logger.error("Document not found", {documentId, userId});
+          res.status(404).json({
+            error: "Belirtilen doküman bulunamadı",
+            success: false,
+          });
+          return;
+        }
+
+        const docData = docSnapshot.data();
+        if (docData?.userId !== userId) {
+          logger.error("Document access denied", {documentId, userId});
+          res.status(403).json({
+            error: "Bu dokümana erişim yetkiniz yok",
+            success: false,
+          });
+          return;
+        }
+
+        // Result verilerini dokümana ekle
+        await docRef.update({
+          result: {
+            data: result,
+            completedAt: new Date().toISOString(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        });
+
+        logger.info("Result added to Firestore document successfully", {
+          docId: documentId,
+          userId,
+          structuredData: true,
+        });
+      } catch (firestoreError) {
+        logger.error("Failed to update Firestore document:", firestoreError);
+        // Don't throw error to avoid breaking the main flow
+      }
+
       res.status(200).json({
         success: true,
         data: result,
         method: "GET",
         timestamp: new Date().toISOString(),
+        documentId, // Güncellenen doküman ID'sini de dön
       });
     } catch (error: unknown) {
       logger.error("AI Tool Result error:", error);
