@@ -30,22 +30,22 @@ function getFalKey(): string {
  * Builds request body for FAL AI API calls.
  * @param {object} params - Request parameters.
  * @param {string} params.prompt - The prompt text.
- * @param {string} params.imageUrl - The image URL.
+ * @param {string[]} params.image_urls - Array of image URLs.
  * @param {Record<string, unknown> | null} params.extra - Extra parameters.
  * @return {object} The request body.
  */
 function buildRequestBody({
   prompt,
-  imageUrl,
+  image_urls, // eslint-disable-line camelcase
   extra,
 }: {
   prompt: string;
-  imageUrl: string;
+  image_urls: string[]; // eslint-disable-line camelcase
   extra?: Record<string, unknown> | null;
 }) {
   return {
     prompt,
-    image_urls: [imageUrl],
+    image_urls, // eslint-disable-line camelcase
     guidance_scale: 3.5,
     num_images: 1,
     output_format: "jpeg",
@@ -268,16 +268,30 @@ export const aiToolRequest = onRequest(
     }
 
     try {
-      const {serviceUrl, prompt, imageUrl, extra} = req.body;
+      // eslint-disable-next-line camelcase
+      const {serviceUrl, prompt, image_urls, extra} = req.body;
 
-      if (!prompt || !imageUrl) {
+      // eslint-disable-next-line max-len, camelcase
+      if (!prompt || !image_urls || !Array.isArray(image_urls) || image_urls.length === 0) {
         res.status(400).json({
-          error: "prompt ve imageUrl gereklidir",
+          // eslint-disable-next-line camelcase
+          error: "prompt ve image_urls (dizi) gereklidir",
         });
         return;
       }
 
-      const body = buildRequestBody({prompt, imageUrl, extra});
+      // URL'lerin string olduğunu kontrol et
+      // eslint-disable-next-line camelcase
+      if (!image_urls.every((url) => typeof url === "string")) {
+        res.status(400).json({
+          // eslint-disable-next-line camelcase
+          error: "image_urls dizisindeki tüm elemanlar string olmalıdır",
+        });
+        return;
+      }
+
+      // eslint-disable-next-line camelcase
+      const body = buildRequestBody({prompt, image_urls, extra});
 
       const result = await makeHttpRequest({
         url: serviceUrl,

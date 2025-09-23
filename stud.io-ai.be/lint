@@ -1,0 +1,7 @@
+> eslint --ext .js,.ts .
+
+Invalid option '--ext' - perhaps you meant '-c'?
+You're using eslint.config.js, some command line flags are no longer available. Please see https://eslint.org/docs/latest/use/command-line-interface for details.
+
+Error: functions predeploy error: Command terminated with non-zero exit code 2
+
