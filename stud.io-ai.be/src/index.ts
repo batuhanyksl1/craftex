@@ -297,13 +297,21 @@ export const aiToolRequest = onRequest(
       });
 
       // eslint-disable-next-line camelcase
-      const {serviceUrl, prompt, image_urls, extra} = req.body;
+      const {serviceUrl, prompt, image_urls, extra, token} = req.body;
 
       // eslint-disable-next-line max-len, camelcase
       if (!prompt || !image_urls || !Array.isArray(image_urls) || image_urls.length === 0) {
         res.status(400).json({
           // eslint-disable-next-line camelcase
           error: "prompt ve image_urls (dizi) gereklidir",
+        });
+        return;
+      }
+
+      // Token kontrolü
+      if (!token || typeof token !== "number" || token <= 0) {
+        res.status(400).json({
+          error: "Geçerli bir token miktarı gereklidir",
         });
         return;
       }
@@ -316,6 +324,50 @@ export const aiToolRequest = onRequest(
           error: "image_urls dizisindeki tüm elemanlar string olmalıdır",
         });
         return;
+      }
+
+      // Kullanıcının hesap bakiyesini kontrol et ve token düş
+      const firestore = admin.firestore();
+      const accountRef = firestore.collection("Accounts").doc(userId);
+
+      try {
+        await firestore.runTransaction(async (transaction) => {
+          const accountDoc = await transaction.get(accountRef);
+
+          if (!accountDoc.exists) {
+            throw new HttpsError("not-found", "Kullanıcı hesabı bulunamadı");
+          }
+
+          const accountData = accountDoc.data();
+          const currentTokens = accountData?.currenttoken || 0;
+
+          if (currentTokens < token) {
+            throw new HttpsError("failed-precondition",
+              `Yetersiz token bakiyesi. Mevcut: ${currentTokens}, ` +
+              `Gerekli: ${token}`);
+          }
+
+          // Token miktarını düş
+          const newTokenAmount = currentTokens - token;
+          transaction.update(accountRef, {
+            currenttoken: newTokenAmount,
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          logger.info("Token deducted from user account", {
+            userId,
+            deductedAmount: token,
+            previousBalance: currentTokens,
+            newBalance: newTokenAmount,
+            structuredData: true,
+          });
+        });
+      } catch (error) {
+        logger.error("Token deduction failed:", error);
+        if (error instanceof HttpsError) {
+          throw error;
+        }
+        throw new HttpsError("internal", "Token düşme işlemi başarısız oldu");
       }
 
       // eslint-disable-next-line camelcase
@@ -339,6 +391,7 @@ export const aiToolRequest = onRequest(
           prompt: prompt || "",
           // eslint-disable-next-line camelcase
           imageUrls: image_urls || [],
+          token: token || 0,
         };
 
         const docRef = await firestore.collection("aiToolRequests")
@@ -389,7 +442,7 @@ export const aiToolRequest = onRequest(
           const userId = decodedToken.uid;
 
           // eslint-disable-next-line camelcase
-          const {serviceUrl, prompt, image_urls, extra} = req.body || {};
+          const {serviceUrl, prompt, image_urls, extra, token} = req.body || {};
 
           // Hata durumunu Firestore'a kaydet - INLINE
           try {
@@ -404,6 +457,7 @@ export const aiToolRequest = onRequest(
                 // eslint-disable-next-line camelcase
                 imageUrls: image_urls || [],
                 extra: extra || {},
+                token: token || 0,
               },
               error: {message: errorMessage},
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
