@@ -46,16 +46,12 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          username: ${{ secrets.SSH_USER }}     # <-- batuhan
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -euxo pipefail
             mkdir -p /srv/apps/web
-            chown -R root:root /srv/apps/web
-            chmod -R 755 /srv/apps/web
             command -v pm2 >/dev/null 2>&1 || npm i -g pm2
-            touch /srv/apps/web/_write_test && rm -f /srv/apps/web/_write_test
-
       - name: Upload build to server
         uses: appleboy/scp-action@v0.1.7
         with:
