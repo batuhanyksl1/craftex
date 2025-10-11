@@ -7,6 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,7 +23,7 @@ jobs:
           npm ci
           npm run build
 
-      - name: Archive build (standalone)
+      - name: Archive build
         run: |
           tar -czf web_build.tgz \
             .next/standalone \
@@ -37,7 +38,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "web_build.tgz"
-          target: "/srv/apps/web"
+          target: ${{ secrets.APP_DIR }}
 
       - name: Unpack & restart PM2
         uses: appleboy/ssh-action@v1.2.0
@@ -47,10 +48,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd /srv/apps/web
+            cd ${{ secrets.APP_DIR }}
             rm -rf .next public package.json || true
             tar -xzf web_build.tgz && rm -f web_build.tgz
-            # ilk kez ise başlat, varsa restart
             if pm2 list | grep -q web-craftex; then
               pm2 restart web-craftex
             else
