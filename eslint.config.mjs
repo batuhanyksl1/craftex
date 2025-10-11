@@ -19,6 +19,23 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+    rules: {
+      // Prettier ile çakışmayı engelle
+      "prettier/prettier": ["error", { endOfLine: "auto" }],
+    },
+  },
+  {
+    plugins: {
+      prettier: await import("eslint-plugin-prettier").then(
+        (m) => m.default ?? m
+      ),
+    },
+  },
+  {
+    files: ["next-env.d.ts"],
+    rules: {
+      "@typescript-eslint/triple-slash-reference": "off",
+    },
   },
 ];
 
