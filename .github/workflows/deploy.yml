@@ -2,11 +2,14 @@ name: Deploy Web (Next.js TS)
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout
@@ -15,45 +18,88 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '20'
+          cache: 'npm'
 
       - name: Install & Build
         run: |
+          set -euxo pipefail
           npm ci
           npm run build
 
+      - name: Verify standalone exists
+        run: |
+          set -euxo pipefail
+          test -d .next/standalone || (echo "❌ .next/standalone yok! next.config.ts => output:'standalone' ekle." && exit 1)
+          test -d .next/static || (echo "❌ .next/static yok! Build başarısız gibi." && exit 1)
+
       - name: Archive build
         run: |
+          set -euxo pipefail
           tar -czf web_build.tgz \
             .next/standalone \
             .next/static \
             public \
             package.json
 
-      - name: Upload to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "web_build.tgz"
-          target: ${{ secrets.APP_DIR }}
-
-      - name: Unpack & restart PM2
+      - name: Ensure app dir + PM2 exist on server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -e
-            cd ${{ secrets.APP_DIR }}
+            set -euxo pipefail
+            mkdir -p /srv/apps/web
+            chown -R root:root /srv/apps/web
+            chmod -R 755 /srv/apps/web
+            command -v pm2 >/dev/null 2>&1 || npm i -g pm2
+            touch /srv/apps/web/_write_test && rm -f /srv/apps/web/_write_test
+
+      - name: Upload build to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "web_build.tgz"
+          target: "/srv/apps/web/"
+          overwrite: true
+          rm: false
+          debug: true
+
+      - name: Unpack & (re)start with PM2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -euxo pipefail
+            cd /srv/apps/web
             rm -rf .next public package.json || true
             tar -xzf web_build.tgz && rm -f web_build.tgz
-            if pm2 list | grep -q web-craftex; then
-              pm2 restart web-craftex
-            else
-              PORT=4000 pm2 start ".next/standalone/server.js" --name web-craftex
+
+            PM2_BIN="$(command -v pm2 || echo /usr/bin/pm2)"
+            if ! $PM2_BIN -v >/dev/null 2>&1; then
+              npm i -g pm2
+              PM2_BIN="$(command -v pm2)"
             fi
-            pm2 save
+
+            if $PM2_BIN list | grep -q web-craftex; then
+              NODE_ENV=production PORT=4000 $PM2_BIN reload web-craftex --update-env
+            else
+              NODE_ENV=production PORT=4000 $PM2_BIN start ".next/standalone/server.js" --name web-craftex
+            fi
+            $PM2_BIN save
+
+            # health check
+            curl -sS http://127.0.0.1:4000/ | head -c 200 || (echo "❌ 4000 portu cevap vermedi" && exit 1)
+
+      - name: Upload build artifact (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web_build_failed
+          path: web_build.tgz
+          if-no-files-found: ignore
