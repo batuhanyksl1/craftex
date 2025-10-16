@@ -4,7 +4,9 @@
 @tailwind utilities;
 
 /* Opsiyonel: küçük bir font & renk iyileştirmesi */
-:root { color-scheme: light dark; }
+:root {
+  color-scheme: light dark;
+}
 
 :root {
   --background: #ffffff;
