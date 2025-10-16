@@ -24,7 +24,7 @@ export default function Home() {
             Teklif Al
           </Link>
           <Link
-            href="#features"
+            href="#Features"
             className="rounded-xl glass px-5 py-3 transition hover:bg-white/20 dark:hover:bg-neutral-900/40"
           >
             Özellikler
