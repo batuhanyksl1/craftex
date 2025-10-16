@@ -32,3 +32,218 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* --- Gradient Theme Additions --- */
+:root {
+  /* Canlı pastel neon paleti */
+  --g1: #7c3aed; /* violet-600 */
+  --g2: #06b6d4; /* cyan-500 */
+  --g3: #22c55e; /* emerald-500 */
+  --g4: #f97316; /* orange-500 */
+  --g5: #e11d48; /* rose-600 */
+
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-br: 16px;
+  --glass-bd: 1px solid rgba(255, 255, 255, 0.12);
+  --glass-blur: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-bg: rgba(13, 13, 13, 0.38);
+    --glass-bd: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* Radial ve conic arka plan katmanları */
+.bg-gradient-hero {
+  background-image:
+    radial-gradient(
+      60% 50% at 20% 0%,
+      color-mix(in oklab, var(--g2) 28%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      50% 50% at 80% 10%,
+      color-mix(in oklab, var(--g1) 32%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      40% 40% at 50% 0%,
+      color-mix(in oklab, var(--g5) 22%, transparent) 0%,
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--g3) 8%, transparent) 0%,
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      color-mix(in oklab, var(--g1) 6%, transparent) 100%
+    );
+  background-repeat: no-repeat;
+}
+
+.bg-gradient-card {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--g1) 12%, transparent),
+      transparent 50%
+    ),
+    linear-gradient(
+      0deg,
+      color-mix(in oklab, var(--g2) 8%, transparent),
+      transparent 60%
+    );
+}
+
+.bg-conic-orbit {
+  background: conic-gradient(
+    from 160deg at 50% 50%,
+    color-mix(in oklab, var(--g1) 16%, transparent),
+    color-mix(in oklab, var(--g2) 16%, transparent),
+    color-mix(in oklab, var(--g3) 16%, transparent),
+    color-mix(in oklab, var(--g4) 16%, transparent),
+    color-mix(in oklab, var(--g5) 16%, transparent),
+    color-mix(in oklab, var(--g1) 16%, transparent)
+  );
+}
+
+/* Cam efekti yardımcı sınıflar */
+.glass {
+  background: var(--glass-bg);
+  border-radius: var(--glass-br);
+  border: var(--glass-bd);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Işıma (glow) ve nefes alan animasyonlar */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0px color-mix(in oklab, var(--g2) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 32px color-mix(in oklab, var(--g2) 40%, transparent);
+  }
+}
+
+@keyframes float-slow {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.glow {
+  animation: pulse-glow 3.8s ease-in-out infinite;
+}
+
+.float {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+/* Gradient metin yardımcıları */
+.text-gradient {
+  background: linear-gradient(90deg, var(--g1), var(--g2), var(--g3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* --- Animated Gradient Text --- */
+@keyframes gradient-x {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.text-gradient-animated {
+  background-image: linear-gradient(
+    90deg,
+    var(--g1),
+    var(--g2),
+    var(--g3),
+    var(--g4),
+    var(--g5)
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-x 8s ease-in-out infinite;
+}
+
+/* --- Gradient Border Helper --- */
+.gradient-border {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--g1) 6%, transparent),
+        transparent 60%
+      )
+      padding-box,
+    linear-gradient(90deg, var(--g1), var(--g2), var(--g3)) border-box;
+  border-radius: var(--glass-br);
+}
+
+/* --- Aurora Overlay --- */
+@keyframes auroraMove {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -2%, 0) scale(1.02);
+  }
+}
+
+.aurora {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      1200px 600px at 10% -10%,
+      color-mix(in oklab, var(--g1) 24%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      1000px 800px at 110% 10%,
+      color-mix(in oklab, var(--g2) 24%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      800px 600px at 50% 120%,
+      color-mix(in oklab, var(--g3) 18%, transparent) 0%,
+      transparent 60%
+    );
+  filter: blur(60px);
+  opacity: 0.5;
+  animation: auroraMove 18s ease-in-out infinite;
+}
+
+/* --- Reduced Motion Respect --- */
+@media (prefers-reduced-motion: reduce) {
+  .glow,
+  .float,
+  .aurora,
+  .text-gradient-animated {
+    animation: none !important;
+  }
+}
