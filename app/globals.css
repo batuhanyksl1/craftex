@@ -200,7 +200,41 @@ body {
   border-radius: var(--glass-br);
 }
 
+/* Kenarlıkta (stroke) gradyan, iç dolgu katı renk kalır */
+.gradient-border-only {
+  border: 2px solid transparent;
+  background:
+    transparent padding-box,
+    linear-gradient(90deg, var(--g1), var(--g2), var(--g3)) border-box;
+  /* Katman 1: padding-box'a, Katman 2: border-box'a clip uygula */
+  background-clip: padding-box, border-box;
+  border-radius: var(--glass-br);
+}
+
 /* --- Aurora Overlay --- */
+/* Gradient kenarlık + katı iç dolgu (gri gibi) */
+.gradient-border-with-fill {
+  border: 2px solid transparent;
+  background:
+    /* İç dolguyu tek renk gradyan hilesiyle boyar */
+    linear-gradient(var(--btn-fill, #e5e7eb), var(--btn-fill, #e5e7eb))
+      padding-box,
+    /* Dış kenarlıkta gradyan */
+      linear-gradient(90deg, var(--g1), var(--g2), var(--g3)) border-box;
+  background-clip: padding-box, border-box;
+  border-radius: var(--glass-br);
+}
+
+/* Gri dolgu (light/dark) */
+.gradient-fill-gray {
+  --btn-fill: #e5e7eb; /* neutral-200 */
+}
+@media (prefers-color-scheme: dark) {
+  .gradient-fill-gray {
+    --btn-fill: #262626; /* neutral-800 */
+  }
+}
+
 @keyframes auroraMove {
   0%,
   100% {

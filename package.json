@@ -6,8 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint app --ext .ts,.tsx,.js,.mjs",
+    "lint:fix": "eslint app --ext .ts,.tsx,.js,.mjs --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
   },

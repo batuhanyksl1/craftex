@@ -27,7 +27,7 @@ const eslintConfig = [
   {
     plugins: {
       prettier: await import("eslint-plugin-prettier").then(
-        (m) => m.default ?? m
+        (m) => m.default ?? m,
       ),
     },
   },
