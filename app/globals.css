@@ -53,7 +53,7 @@ body {
 }
 
 /* Radial ve conic arka plan katmanları */
-.bg-gradient-hero {
+.c-bg-gradient-hero {
   background-image:
     radial-gradient(
       60% 50% at 20% 0%,
@@ -83,7 +83,7 @@ body {
   background-repeat: no-repeat;
 }
 
-.bg-gradient-card {
+.c-bg-gradient-card {
   background:
     linear-gradient(
       180deg,
@@ -97,7 +97,7 @@ body {
     );
 }
 
-.bg-conic-orbit {
+.c-bg-conic-orbit {
   background: conic-gradient(
     from 160deg at 50% 50%,
     color-mix(in oklab, var(--g1) 16%, transparent),
@@ -110,7 +110,7 @@ body {
 }
 
 /* Cam efekti yardımcı sınıflar */
-.glass {
+.c-glass {
   background: var(--glass-bg);
   border-radius: var(--glass-br);
   border: var(--glass-bd);
@@ -141,16 +141,16 @@ body {
   }
 }
 
-.glow {
+.c-glow {
   animation: pulse-glow 3.8s ease-in-out infinite;
 }
 
-.float {
+.c-float {
   animation: float-slow 8s ease-in-out infinite;
 }
 
 /* Gradient metin yardımcıları */
-.text-gradient {
+.c-text-gradient {
   background: linear-gradient(90deg, var(--g1), var(--g2), var(--g3));
   -webkit-background-clip: text;
   background-clip: text;
@@ -170,7 +170,7 @@ body {
   }
 }
 
-.text-gradient-animated {
+.c-text-gradient-animated {
   background-image: linear-gradient(
     90deg,
     var(--g1),
@@ -187,7 +187,7 @@ body {
 }
 
 /* --- Gradient Border Helper --- */
-.gradient-border {
+.c-gradient-border {
   border: 1px solid transparent;
   background:
     linear-gradient(
@@ -201,7 +201,7 @@ body {
 }
 
 /* Kenarlıkta (stroke) gradyan, iç dolgu katı renk kalır */
-.gradient-border-only {
+.c-gradient-border-only {
   border: 2px solid transparent;
   background:
     transparent padding-box,
@@ -213,7 +213,7 @@ body {
 
 /* --- Aurora Overlay --- */
 /* Gradient kenarlık + katı iç dolgu (gri gibi) */
-.gradient-border-with-fill {
+.c-gradient-border-with-fill {
   border: 2px solid transparent;
   background:
     /* İç dolguyu tek renk gradyan hilesiyle boyar */
@@ -226,13 +226,43 @@ body {
 }
 
 /* Gri dolgu (light/dark) */
-.gradient-fill-gray {
+.c-gradient-fill-gray {
   --btn-fill: #e5e7eb; /* neutral-200 */
 }
 @media (prefers-color-scheme: dark) {
-  .gradient-fill-gray {
+  .c-gradient-fill-gray {
     --btn-fill: #262626; /* neutral-800 */
   }
+}
+
+/* Hover efektleri: kenarlık gradyan akışı + iç dolgu hafif aydınlanır */
+.c-gradient-border-with-fill {
+  background-size:
+    100% 100%,
+    100% 100%;
+  background-position:
+    center,
+    0% 50%;
+  transition:
+    background-position 600ms ease,
+    box-shadow 300ms ease,
+    transform 200ms ease;
+}
+.c-gradient-border-with-fill:hover {
+  background:
+    linear-gradient(
+        color-mix(in oklab, var(--btn-fill, #e5e7eb) 94%, white 6%),
+        color-mix(in oklab, var(--btn-fill, #e5e7eb) 94%, white 6%)
+      )
+      padding-box,
+    linear-gradient(90deg, var(--g1), var(--g2), var(--g3), var(--g1))
+      border-box;
+  background-size:
+    100% 100%,
+    200% 100%;
+  background-position:
+    center,
+    100% 50%;
 }
 
 @keyframes auroraMove {
@@ -245,7 +275,7 @@ body {
   }
 }
 
-.aurora {
+.c-aurora {
   position: absolute;
   inset: 0;
   background:
@@ -271,10 +301,10 @@ body {
 
 /* --- Reduced Motion Respect --- */
 @media (prefers-reduced-motion: reduce) {
-  .glow,
-  .float,
-  .aurora,
-  .text-gradient-animated {
+  .c-glow,
+  .c-float,
+  .c-aurora,
+  .c-text-gradient-animated {
     animation: none !important;
   }
 }
